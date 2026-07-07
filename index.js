@@ -88,6 +88,28 @@ app.get("/", (req, res) => {
   res.send("API Irya está rodando!");
 });
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const normalizeUuid = (value) =>
+  String(value ?? "")
+    .trim()
+    .replace(/^"+|"+$/g, "");
+
+const createAuthSuccessPayload = (paciente) => {
+  const token = jwt.sign(
+    { telefone: paciente.telefone },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  return {
+    message: "Login bem-sucedido!",
+    token,
+    paciente: mapPacienteToPortalPayload(paciente),
+  };
+};
+
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -262,6 +284,92 @@ app.get("/auth/telefone-disponivel/:telefone", async (req, res) => {
   }
 });
 
+app.get("/auth/pre-cadastro/:id", async (req, res) => {
+  const id = normalizeUuid(req.params.id);
+
+  if (!UUID_REGEX.test(id)) {
+    return res.status(400).json({ error: "Identificador de acesso inválido." });
+  }
+
+  try {
+    const paciente = await pacienteRepository.findRawById(id);
+
+    if (!paciente) {
+      return res.status(404).json({ error: "Pré-cadastro não encontrado." });
+    }
+
+    return res.json({
+      id: paciente.id,
+      nomeCompleto:
+        paciente.nomeCompleto ?? paciente.nome ?? paciente.apelido ?? null,
+      telefone: paciente.telefone,
+      senhaJaCriada: Boolean(paciente.senhaHash),
+    });
+  } catch (e) {
+    console.error("Erro ao buscar pré-cadastro por id:", e);
+    return res
+      .status(500)
+      .json({ error: "Não foi possível validar o acesso enviado." });
+  }
+});
+
+app.post("/auth/pre-cadastro/ativar", async (req, res) => {
+  const id = normalizeUuid(req.body?.id);
+  const senha = String(req.body?.senha ?? "");
+
+  if (!UUID_REGEX.test(id)) {
+    return res.status(400).json({ error: "Identificador de acesso inválido." });
+  }
+
+  if (!senha || senha.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "A senha deve ter pelo menos 6 caracteres." });
+  }
+
+  try {
+    const paciente = await pacienteRepository.findRawById(id);
+
+    if (!paciente) {
+      return res.status(404).json({ error: "Pré-cadastro não encontrado." });
+    }
+
+    if (paciente.senhaHash) {
+      return res.status(409).json({
+        error:
+          "Este acesso já foi ativado. Faça login com seu telefone e senha.",
+      });
+    }
+
+    if (!paciente.telefone) {
+      return res.status(400).json({
+        error:
+          "Este pré-cadastro não possui telefone vinculado. Revise a origem do link.",
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const senhaHash = await bcrypt.hash(senha, salt);
+
+    const pacienteAtualizado = await prisma.paciente.update({
+      where: { id },
+      data: {
+        senhaHash,
+        apiKey: paciente.apiKey ?? randomUUID(),
+      },
+      include: latestPatientContextInclude,
+    });
+
+    return res.json({
+      message: "Acesso ativado com sucesso!",
+      ...createAuthSuccessPayload(pacienteAtualizado),
+    });
+  } catch (e) {
+    console.error("Erro ao ativar pré-cadastro:", e);
+    return res.status(500).json({ error: "Erro interno ao ativar acesso." });
+  }
+});
+
 app.post("/auth/login", async (req, res) => {
   const telefone = normalizeDigitsOnly(req.body?.telefone);
   const senha = String(req.body?.senha ?? "");
@@ -290,17 +398,7 @@ app.post("/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
-    const token = jwt.sign(
-      { telefone: paciente.telefone },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
-
-    res.json({
-      message: "Login bem-sucedido!",
-      token,
-      paciente: mapPacienteToPortalPayload(paciente),
-    });
+    res.json(createAuthSuccessPayload(paciente));
   } catch (e) {
     console.error("Erro no login:", e);
     res.status(500).json({ error: "Erro interno no servidor." });

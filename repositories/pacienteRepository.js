@@ -15,6 +15,12 @@ const patientInclude = {
 };
 
 export const createPacienteRepository = (prisma) => {
+  const findRawById = (id) =>
+    prisma.paciente.findUnique({
+      where: { id },
+      include: patientInclude,
+    });
+
   const findRawByTelefone = (telefone) =>
     prisma.paciente.findUnique({
       where: { telefone },
@@ -23,6 +29,11 @@ export const createPacienteRepository = (prisma) => {
 
   const findByTelefone = async (telefone) => {
     const paciente = await findRawByTelefone(telefone);
+    return mapPacienteToPortalPayload(paciente);
+  };
+
+  const findById = async (id) => {
+    const paciente = await findRawById(id);
     return mapPacienteToPortalPayload(paciente);
   };
 
@@ -135,7 +146,9 @@ export const createPacienteRepository = (prisma) => {
   };
 
   return {
+    findRawById,
     findRawByTelefone,
+    findById,
     findByTelefone,
     findProfileByTelefone,
     findByTelefoneWithApiKey,
