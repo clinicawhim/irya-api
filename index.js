@@ -32,9 +32,13 @@ const botService = createBotService({ pacienteRepository, botRepository });
 const subscriptionService = createSubscriptionService({ pacienteRepository });
 const adminRepository = createAdminRepository(prisma);
 const adminService = createAdminService({ adminRepository });
-const latestSubscriptionInclude = {
+const latestPatientContextInclude = {
   assinaturas: {
     orderBy: [{ atualizadoEm: "desc" }, { criadoEm: "desc" }],
+    take: 1,
+  },
+  historicoPesos: {
+    orderBy: { dataRegistro: "desc" },
     take: 1,
   },
 };
@@ -148,7 +152,7 @@ app.get("/paciente/me", authenticateToken, async (req, res) => {
 
   const paciente = await prisma.paciente.findUnique({
     where: { telefone: pacienteTelefone },
-    include: latestSubscriptionInclude,
+    include: latestPatientContextInclude,
   });
 
   res.json(mapPacienteToPortalPayload(paciente));
@@ -172,7 +176,7 @@ app.put("/paciente/me", authenticateToken, async (req, res) => {
 
 app.get("/integrations/pacientes", authenticateService, async (req, res) => {
   const pacientes = await prisma.paciente.findMany({
-    include: latestSubscriptionInclude,
+    include: latestPatientContextInclude,
   });
 
   res.json(pacientes.map(mapPacienteToPortalPayload));
@@ -186,7 +190,7 @@ app.get(
 
     const paciente = await prisma.paciente.findUnique({
       where: { telefone },
-      include: latestSubscriptionInclude,
+      include: latestPatientContextInclude,
     });
 
     if (!paciente) {
@@ -271,7 +275,7 @@ app.post("/auth/login", async (req, res) => {
   try {
     const paciente = await prisma.paciente.findUnique({
       where: { telefone },
-      include: latestSubscriptionInclude,
+      include: latestPatientContextInclude,
     });
 
     if (!paciente) {
@@ -330,7 +334,7 @@ app.get("/questionario/status", authenticateToken, async (req, res) => {
     const [pacientePerfil, ultimosPesos] = await Promise.all([
       prisma.paciente.findUnique({
         where: { telefone: pacienteTelefone },
-        select: { id: true, alturaM: true },
+        select: { id: true },
       }),
       prisma.historicoPeso.findMany({
         where: { pacienteTelefone },
@@ -344,7 +348,7 @@ app.get("/questionario/status", authenticateToken, async (req, res) => {
     }
 
     const pesoAtualKg = ultimosPesos[0]?.pesoKg ?? null;
-    const alturaM = pacientePerfil.alturaM ?? null;
+    const alturaM = ultimosPesos[0]?.alturaM ?? null;
     const imcAtual =
       ultimosPesos[0]?.imc ??
       (pesoAtualKg !== null && alturaM !== null
@@ -455,14 +459,19 @@ app.post("/questionario/submeter", authenticateToken, async (req, res) => {
   }
 
   try {
-    const [pacientePerfil, ultimoQuestionario] = await Promise.all([
+    const [pacientePerfil, ultimoQuestionario, ultimoHistoricoPeso] = await Promise.all([
       prisma.paciente.findUnique({
         where: { telefone: pacienteTelefone },
-        select: { id: true, alturaM: true },
+        select: { id: true },
       }),
       prisma.questionarioConcluido.findFirst({
         where: { pacienteTelefone },
         orderBy: { dataConclusao: "desc" },
+      }),
+      prisma.historicoPeso.findFirst({
+        where: { pacienteTelefone },
+        orderBy: { dataRegistro: "desc" },
+        select: { alturaM: true },
       }),
     ]);
 
@@ -471,8 +480,9 @@ app.post("/questionario/submeter", authenticateToken, async (req, res) => {
     }
 
     const alturaMParaCalculo =
-      pacientePerfil.alturaM !== null && pacientePerfil.alturaM !== undefined
-        ? pacientePerfil.alturaM
+      ultimoHistoricoPeso?.alturaM !== null &&
+      ultimoHistoricoPeso?.alturaM !== undefined
+        ? ultimoHistoricoPeso.alturaM
         : alturaMInformada;
 
     if (
@@ -621,18 +631,6 @@ app.post("/questionario/submeter", authenticateToken, async (req, res) => {
             pacienteId: pacientePerfil.id,
             questionarioConcluidoId: questionario.id,
           })),
-        });
-      }
-
-      if (
-        pacientePerfil.alturaM === null ||
-        pacientePerfil.alturaM === undefined
-      ) {
-        await tx.paciente.update({
-          where: { telefone: pacienteTelefone },
-          data: {
-            alturaM: parseFloat(alturaMParaCalculo.toFixed(2)),
-          },
         });
       }
 

@@ -31,6 +31,10 @@ export const createAdminRepository = (prisma) => {
           orderBy: [{ atualizadoEm: "desc" }, { criadoEm: "desc" }],
           take: 1,
         },
+        historicoPesos: {
+          orderBy: { dataRegistro: "desc" },
+          take: 1,
+        },
         _count: {
           select: {
             questionariosConcluidos: true,

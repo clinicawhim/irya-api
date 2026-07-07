@@ -15,7 +15,6 @@ model Paciente {
   nomeCompleto   String?         @map("nome_completo")
   senhaHash      String?         @map("senha_hash")
   apiKey         String?         @map("api_key")
-  alturaM        Float?          @map("altura_m")
   dataCadastro   DateTime        @default(now()) @map("data_cadastro")
   dataCriacao    DateTime?       @default(now()) @map("criado_em")
   cpf            String?

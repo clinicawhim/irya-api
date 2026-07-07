@@ -8,6 +8,10 @@ const patientInclude = {
     orderBy: [{ atualizadoEm: "desc" }, { criadoEm: "desc" }],
     take: 1,
   },
+  historicoPesos: {
+    orderBy: { dataRegistro: "desc" },
+    take: 1,
+  },
 };
 
 export const createPacienteRepository = (prisma) => {
