@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 const questionarioData = [
   {
     nome: "Nutrição",
-    maximo: 24,
+    maximo: 15,
     perguntas: [
       {
         texto: "Quantas vezes na semana você consome frutas e vegetais?",
@@ -29,23 +29,6 @@ const questionarioData = [
           "Está conseguindo manter sua hidratação adequada (35 ml × seu peso)?",
         ordem: 5,
         invertida: false,
-      },
-      {
-        texto: "Com que frequência você consome bebidas alcoólicas?",
-        ordem: 6,
-        invertida: true,
-      },
-      {
-        texto:
-          "Com que frequência você fuma (cigarros, narguilé, cigarros eletrônicos ou similares)?",
-        ordem: 7,
-        invertida: true,
-      },
-      {
-        texto:
-          "Com que frequência você faz uso de outras substâncias (como drogas ilícitas ou medicamentos sem prescrição)?",
-        ordem: 8,
-        invertida: true,
       },
     ],
   },
@@ -157,6 +140,29 @@ const questionarioData = [
           "Você está conseguindo seguir a Trilha de Florescimento da WHIM e colocando em prática o que aprende?",
         ordem: 6,
         invertida: false,
+      },
+    ],
+  },
+  {
+    nome: "Substâncias Nocivas",
+    maximo: 9,
+    perguntas: [
+      {
+        texto: "Com que frequência você consome bebidas alcoólicas?",
+        ordem: 1,
+        invertida: true,
+      },
+      {
+        texto:
+          "Com que frequência você fuma (cigarros, narguilé, cigarros eletrônicos ou similares)?",
+        ordem: 2,
+        invertida: true,
+      },
+      {
+        texto:
+          "Com que frequência você faz uso de outras substâncias (como drogas ilícitas ou medicamentos sem prescrição)?",
+        ordem: 3,
+        invertida: true,
       },
     ],
   },

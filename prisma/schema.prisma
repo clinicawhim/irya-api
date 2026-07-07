@@ -151,6 +151,7 @@ model DadosMev {
   scoreSono              Int?      @map("score_sono")
   scoreEmocoes           Int?      @map("score_emocoes")
   scoreConexoes          Int?      @map("score_conexoes")
+  scoreSubstanciasNocivas Int?     @map("score_substancias_nocivas")
   scoreTotal             Int?      @map("score_total")
   percentualVitalidade   Int?      @map("percentual_vitalidade")
   classificacaoVitalidade String?  @map("classificacao_vitalidade")
