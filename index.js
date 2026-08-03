@@ -459,26 +459,30 @@ app.get("/questionario/status", authenticateToken, async (req, res) => {
           )
         : null;
 
-    const ultimoQuestionario = await prisma.questionarioConcluido.findFirst({
-      where: { pacienteTelefone },
-      orderBy: { dataConclusao: "desc" },
-      include: {
-        pontuacoes: {
-          include: {
-            pilar: {
-              select: {
-                nomePilar: true,
-                pontuacaoMaxima: true,
+    const [ultimoQuestionario, totalQuestionariosConcluidos] = await Promise.all([
+      prisma.questionarioConcluido.findFirst({
+        where: { pacienteTelefone },
+        orderBy: { dataConclusao: "desc" },
+        include: {
+          pontuacoes: {
+            include: {
+              pilar: {
+                select: {
+                  nomePilar: true,
+                  pontuacaoMaxima: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.questionarioConcluido.count({ where: { pacienteTelefone } }),
+    ]);
 
     if (!ultimoQuestionario) {
       return res.json({
         podeResponder: true,
+        primeiroQuestionario: false,
         resultadoAnterior: null,
         pesoAtualKg,
         variacaoPesoKg,
@@ -515,6 +519,7 @@ app.get("/questionario/status", authenticateToken, async (req, res) => {
 
     res.json({
       podeResponder,
+      primeiroQuestionario: totalQuestionariosConcluidos === 1,
       resultadoAnterior: resultadoAnteriorFormatado,
       pesoAtualKg,
       variacaoPesoKg,
